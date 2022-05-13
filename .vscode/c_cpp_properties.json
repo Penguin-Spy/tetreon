@@ -1,0 +1,13 @@
+{
+  "configurations": [
+    {
+      "name": "Win32",
+      "includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/../include/**"
+      ],
+      "compilerPath": ""
+    }
+  ],
+  "version": 4
+}
