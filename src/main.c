@@ -11,7 +11,7 @@
 #include <keypadc.h>
 #include <graphx.h>
 
-#include "srs.h"
+#include "tetriminos.h"
 
 /* tetrimino colors */
 #define COLOR_I 31
@@ -22,7 +22,7 @@
 #define COLOR_J 24
 #define COLOR_L 228
 
-uint8_t tetrimino_colors[7] ={
+uint8_t tetrimino_colors[7] = {
   COLOR_I,
   COLOR_O,
   COLOR_T,
@@ -42,50 +42,50 @@ void DrawRect(uint24_t x, uint24_t y, uint24_t width, uint24_t height, uint8_t c
 void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, uint8_t x, uint8_t y);
 void DrawPlayfield(uint8_t playfield[20][10]);
 
-enum tetrimino { I, O, T, S, Z, J, L, None }; // none is for the hold slot, which is empty by default
-enum rotation { Up, Left, Down, Right };
+#define ctrl_Up    (1<<0)
+#define ctrl_Down  (1<<1)
+#define ctrl_Left  (1<<2)
+#define ctrl_Right (1<<3)
+#define ctrl_RotL  (1<<4)
+#define ctrl_RotR  (1<<5)
+#define ctrl_Hold  (1<<6)
+#define ctrl_Pause (1<<7)
 
 
 int main(void) {
-  /* Key variable */
-  kb_key_t keys_dpad;
-  kb_key_t keys_2nd;
-  kb_key_t keys_alpha;
-  kb_key_t keys_graph;
+  uint8_t controls_cur = 0;  // current state of controls
+  uint8_t controls_prev = 0; // previous state of controls
+  uint8_t controls = 0;      // set for one frame when key pressed
+
   const char* erase_string = "";
 
   /* game state variables */
-  uint8_t playfield[20][10] ={
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,1,0,1,0,0,1,1,1,0},
-    {0,1,1,1,0,0,0,1,0,0},
-    {0,1,0,1,0,0,1,1,1,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0},
-    {0,0,0,0,0,0,0,0,0,0}
+  uint8_t playfield[20][10] = {
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,1,0,1,0,0,1,1,1,0 },
+    { 0,1,1,1,0,0,0,1,0,0 },
+    { 0,1,0,1,0,0,1,1,1,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 },
+    { 0,0,0,0,0,0,0,0,0,0 }
   };
   uint8_t hand_x = 0, hand_y = 0;
   enum tetrimino hand_tetrimino = J;
   enum rotation  hand_rotation = Up;
   enum tetrimino hold_tetrimino = None;
-
-  double* p;
-  double balance[10];
-
-  p = balance;
 
   gfx_Begin();
   gfx_SetDrawBuffer();
@@ -110,49 +110,96 @@ int main(void) {
     /* Update kb_Data */
     kb_Scan();
 
-    keys_dpad  = kb_Data[7];
-    keys_2nd   = kb_Data[1];
-    keys_alpha = kb_Data[2];
-    keys_graph = kb_Data[3];
+    /*if(keys_dpad & kb_Up     && !(controls_prev && ctrl_Up))    controls |= ctrl_Up;
+    if(keys_dpad & kb_Down   && !(controls_prev && ctrl_Down))  controls |= ctrl_Down;
+    if(keys_dpad & kb_Left   && !(controls_prev && ctrl_Left))  controls |= ctrl_Left;
+    if(keys_dpad & kb_Right  && !(controls_prev && ctrl_Right)) controls |= ctrl_Right;
+    if(keys_2nd   & kb_2nd   && !(controls_prev && ctrl_RotL))  controls |= ctrl_RotL;
+    if(keys_alpha & kb_Alpha && !(controls_prev && ctrl_RotR))  controls |= ctrl_RotR;
+    if(keys_2nd   & kb_Mode  && !(controls_prev && ctrl_Pause)) controls |= ctrl_Pause;
+    if((keys_graph & kb_GraphVar || keys_2nd & kb_Yequ) && !(controls_prev && ctrl_Hold)) controls |= ctrl_Hold;*/
 
-    gfx_FillRectangle(228, 0, 40, 8*8);
+    controls_cur = 0;
+    controls_cur |= kb_Data[7] & kb_Up ? ctrl_Up : 0;
+    controls_cur |= kb_Data[7] & kb_Down ? ctrl_Down : 0;
+    controls_cur |= kb_Data[7] & kb_Left ? ctrl_Left : 0;
+    controls_cur |= kb_Data[7] & kb_Right ? ctrl_Right : 0;
+    controls_cur |= kb_Data[1] & kb_2nd ? ctrl_RotL : 0;
+    controls_cur |= kb_Data[2] & kb_Alpha ? ctrl_RotR : 0;
+    controls_cur |= kb_Data[1] & kb_Mode ? ctrl_Pause : 0;
+    controls_cur |= kb_Data[3] & kb_GraphVar || kb_Data[1] & kb_Yequ ? ctrl_Hold : 0;
+
+    //if(controls_cur & ctrl_Up && !(controls_prev & ctrl_Up)) controls |= ctrl_Up;
+    controls = controls_cur & (~controls_prev);
+    controls_prev = controls_cur;
 
     /* Print the current arrow key input */
-    gfx_PrintStringXY(keys_dpad  & kb_Down  ? "Down"  : erase_string, 228, 0);
-    gfx_PrintStringXY(keys_dpad  & kb_Up    ? "Up"    : erase_string, 228, 1*8);
-    gfx_PrintStringXY(keys_dpad  & kb_Left  ? "Left"  : erase_string, 228, 2*8);
-    gfx_PrintStringXY(keys_dpad  & kb_Right ? "Right" : erase_string, 228, 3*8);
-    gfx_PrintStringXY(keys_2nd   & kb_2nd   ? "A"     : erase_string, 228, 4*8);
-    gfx_PrintStringXY(keys_alpha & kb_Alpha ? "B"     : erase_string, 228, 5*8);
-    gfx_PrintStringXY(keys_2nd   & kb_Mode  ? "Pause" : erase_string, 228, 6*8);
-    gfx_PrintStringXY(keys_graph & kb_GraphVar || keys_2nd & kb_Yequ ? "Hold" : erase_string, 228, 7*8);
+    gfx_FillRectangle(228, 0, 40, 8*8);
+    gfx_PrintStringXY(controls & ctrl_Up    ? "Up"    : erase_string, 228, 0);
+    gfx_PrintStringXY(controls & ctrl_Down  ? "Down"  : erase_string, 228, 1*8);
+    gfx_PrintStringXY(controls & ctrl_Left  ? "Left"  : erase_string, 228, 2*8);
+    gfx_PrintStringXY(controls & ctrl_Right ? "Right" : erase_string, 228, 3*8);
+    gfx_PrintStringXY(controls & ctrl_RotL  ? "RotL"  : erase_string, 228, 4*8);
+    gfx_PrintStringXY(controls & ctrl_RotR  ? "RotR"  : erase_string, 228, 5*8);
+    gfx_PrintStringXY(controls & ctrl_Hold  ? "Hold"  : erase_string, 228, 6*8);
+    gfx_PrintStringXY(controls & ctrl_Pause ? "Pause" : erase_string, 228, 7*8);
+
+
+    /* Tetrimino shifting */
+    if(controls & ctrl_Left) {
+      //TODO: check collision
+
+      hand_x--;
+    }
+    if(controls & ctrl_Right) {
+      //TODO: check collision
+
+      hand_x++;
+    }
+    if(controls & ctrl_Up) {
+      //TODO: hard drop
+
+      hand_y++;
+    }
+    if(controls & ctrl_Down) {
+      //TODO: soft drop
+
+      hand_y--;
+    }
+
+    /* Tetrimino rotation */
+    if(controls & ctrl_RotL) {
+      //TODO: check collision
+
+      hand_rotation -= 1;
+
+    }
+    if(controls & ctrl_RotR) {
+      hand_rotation += 1;
+    }
+
+
+    if(hand_rotation > Right) hand_rotation = Up;
+    if(hand_rotation < Up) hand_rotation = Right;
+
+
+    //hand_rotation = (hand_rotation > 3 || hand_rotation < 0) ? 0 : hand_rotation;
+
+    if(controls & ctrl_Hold) {
+      hand_tetrimino += 1;
+      if(hand_tetrimino >= None) hand_tetrimino = I;
+    }
+
+    gfx_SetTextXY(228, 8*8);
+    gfx_PrintInt(hand_tetrimino, 1);
+    gfx_SetTextXY(244, 8*8);
+    gfx_PrintInt(hand_rotation, 1);
 
     DrawPlayfield(playfield);
 
     DrawTetrimino(hand_tetrimino, hand_rotation, hand_x, hand_y);
 
     gfx_BlitBuffer();
-
-    if(hand_y < 20) {
-      hand_y++;
-    } else {
-      hand_y = 0;
-      if(hand_x < 10) {
-        hand_x++;
-      } else {
-        hand_x = 0;
-        if(hand_rotation < 3) {
-          hand_rotation++;
-        } else {
-          hand_rotation = 0;
-          if(hand_tetrimino < 6) {
-            hand_tetrimino++;
-          } else {
-            hand_tetrimino = 0;
-          }
-        }
-      }
-    }
 
   } while(kb_Data[6] != kb_Clear);
 
@@ -174,21 +221,7 @@ void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, u
 
   gfx_SetColor(tetrimino_colors[hand_tetrimino]);
 
-  /*switch(hand_tetrimino) {
-    case J:
-      gfx_SetColor(COLOR_J);
-      // 4*4*4*hand_tetrimino + 4*4*hand_rotation
-
-
-      //rotations = Jrotations;
-      /*default:
-        gfx_PrintStringXY("invalid tetrimino: ", 0, 232);
-        gfx_PrintInt(tetrimino, 1);
-        gfx_PrintString(", ");
-        gfx_PrintInt(rotation, 1);*/
-        //}
-
-  for(r = 0; r < 4*4; r+=4) {
+  for(r = 0; r < 4*4; r += 4) {
     for(c = 0; c < 4; c++) {
       gfx_SetTextXY(c*8, r*2);
       gfx_PrintInt(*(shape+r+c), 1);
