@@ -28,9 +28,6 @@ int main(void) {
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
-    { 0,1,0,1,0,0,1,1,1,0 },
-    { 0,1,1,1,0,0,0,1,0,0 },
-    { 0,1,0,1,0,0,1,1,1,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
@@ -39,15 +36,27 @@ int main(void) {
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
     { 0,0,0,0,0,0,0,0,0,0 },
-    { 0,0,0,0,0,0,0,0,0,0 },
-    { 0,0,0,0,0,0,0,0,0,0 },
-    { 0,0,0,0,0,0,0,0,0,0 },
-    { 0,0,0,0,0,0,0,0,0,0 }
+    { 0,0,0,0,2,2,0,0,0,0 },
+    { 0,0,0,0,0,2,2,2,0,0 },
+    { 0,0,0,0,0,0,2,2,2,2 },
+    { 0,4,4,4,0,0,0,2,2,2 },
+    { 0,4,4,0,0,0,2,2,2,2 },
+    { 4,4,4,4,0,0,2,2,2,2 },
+    { 4,4,4,4,4,0,2,2,2,2 }
   };
   int8_t hand_x = 0, hand_y = 0;
   enum tetrimino hand_tetrimino = J;
   enum rotation  hand_rotation = Up;
   enum tetrimino hold_tetrimino = None;
+
+  // start up a timer for tetrimino gravity & locking, do not move:
+  /*timer_Control = TIMER1_DISABLE | TIMER2_DISABLE;*/
+  timer_2_Counter = timer_2_ReloadValue = 32768;
+
+  //timer_Control = TIMER1_ENABLE | TIMER1_32K | TIMER1_NOINT | TIMER1_UP   |   TIMER2_ENABLE | TIMER2_32K | TIMER2_0INT  | TIMER2_DOWN;
+  timer_Control = TIMER1_ENABLE | TIMER1_32K | TIMER1_NOINT | TIMER1_UP   |   TIMER2_ENABLE | TIMER2_32K | TIMER2_NOINT  | TIMER2_UP;
+  timer_1_Counter = timer_1_ReloadValue = 32768;
+  timer_2_Counter = timer_2_ReloadValue = 32768;
 
   gfx_Begin();
   gfx_SetDrawBuffer();
@@ -100,11 +109,13 @@ int main(void) {
 
     /* Tetrimino shifting */
     if(controls & ctrl_Left) {
+      timer_1_Counter = 0;
       if(CheckCollision(hand_tetrimino, hand_rotation, --hand_x, hand_y, playfield)) {
         hand_x++;
       }
     }
     if(controls & ctrl_Right) {
+      timer_1_Counter = 0;
       if(CheckCollision(hand_tetrimino, hand_rotation, ++hand_x, hand_y, playfield)) {
         hand_x--;
       }
@@ -116,6 +127,7 @@ int main(void) {
       }
     }
     if(controls & ctrl_Down) {
+      timer_1_Counter = 0;
       //TODO: soft drop
       if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
         hand_y--;
@@ -124,42 +136,71 @@ int main(void) {
 
     /* Tetrimino rotation */
     if(controls & ctrl_RotL) {
-      //TODO: wall kicks
-
       enum rotation test_rotation = hand_rotation;
+
+      timer_1_Counter = 0;
       test_rotation--;
       if(test_rotation < Up) test_rotation = Left;
 
-      /*if(!CheckCollision(hand_tetrimino, test_rotation, hand_x, hand_y, playfield)) {
-        hand_rotation--;
-      }*/
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
         hand_rotation = test_rotation;
       }
-
     }
     if(controls & ctrl_RotR) {
-
       enum rotation test_rotation = hand_rotation;
+
+      timer_1_Counter = 0;
+
       test_rotation++;
       if(test_rotation > Left) test_rotation = Up;
 
-      /*if(!CheckCollision(hand_tetrimino, test_rotation, hand_x, hand_y, playfield)) {
-        hand_rotation++;
-      }*/
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
         hand_rotation = test_rotation;
       }
-
     }
-
     if(hand_rotation > Left) hand_rotation = Up;
     if(hand_rotation < Up) hand_rotation = Left;
+
+
 
     if(controls & ctrl_Hold) {
       hand_tetrimino += 1;
       if(hand_tetrimino >= None) hand_tetrimino = I;
     }
+
+    /* Tetrimino gravity */
+    if(timer_2_Counter > 16384) {
+      timer_2_Counter = 0;
+
+      if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
+        hand_y--;
+      }
+    }
+    gfx_SetTextXY(0, 224);
+    gfx_PrintUInt(timer_Get(1), 1);
+    gfx_SetTextXY(0, 232);
+    gfx_PrintUInt(timer_Get(2), 1);
+
+    /* Tetrimino locking */
+    if(timer_1_Counter > 16384) {
+      timer_1_Counter = 0;
+
+      if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
+        PlaceTetrimino(hand_tetrimino, hand_rotation, hand_x, --hand_y, playfield);
+
+        hand_tetrimino += 1;
+        if(hand_tetrimino >= None) hand_tetrimino = I;
+
+        hand_x = 4;
+        hand_y = 0;
+      } else {
+        hand_y--;
+      }
+    }
+
+
+
+
 
 
     gfx_SetTextXY(228, 8*8);
@@ -259,6 +300,26 @@ int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum ro
 
 }
 
+void PlaceTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y, uint8_t playfield[20][10]) {
+  uint8_t r, c;
+
+  // Fancy pointer math to get shape of tetrimino
+  uint8_t* shape = rotations;
+  shape += hand_tetrimino*TETRIMINO_SIZE*TETRIMINO_ROTATIONS +hand_rotation*TETRIMINO_SIZE;
+
+  gfx_SetColor(hand_tetrimino);
+
+  // for i=15,0,-1 do    *(shape + (1<<i) ) == 1
+
+  for(r = 0; r < 4; r++) {
+    for(c = 0; c < 4; c++) {
+      if(*(shape+(r*4)+c) == 1) {
+        playfield[y+r][x+c] = hand_tetrimino + 1;
+      }
+    }
+  }
+}
+
 /* x, y are the position in the playfield of the top-left corner of the tetrimino */
 void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y) {
   uint8_t r, c;
@@ -291,8 +352,8 @@ void DrawPlayfield(uint8_t playfield[20][10]) {
   // Loop through matrix
   for(r = 0; r < PLAYFIELD_HEIGHT; r++) {
     for(c = 0; c < PLAYFIELD_WIDTH; c++) {
-      if(playfield[r][c]) {
-        gfx_SetColor(playfield[r][c]);
+      if(playfield[r][c] != 0) {
+        gfx_SetColor(playfield[r][c] - 1);
         gfx_FillRectangle_NoClip(100 + 12*c, 12*r, 12, 12);
       }
     }
