@@ -32,7 +32,7 @@ uint16_t palette[] = {
 #define PLAYFIELD_HEIGHT 20
 
 enum tetrimino { I, O, T, S, Z, J, L, None }; // none is for the hold slot, which is empty by default
-enum rotation { Up, Left, Down, Right };
+enum rotation { Up, Right, Down, Left };  // based on the pointy bit of the T
 
 #define TETRIMINO_COUNT     7
 #define TETRIMINO_ROTATIONS 4

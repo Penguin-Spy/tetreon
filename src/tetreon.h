@@ -7,7 +7,7 @@
 void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y);
 void DrawPlayfield(uint8_t playfield[20][10]);
 int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, int8_t test_x, int8_t test_y, uint8_t playfield[20][10]);
-
+int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum rotation* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]);
 
 #define ctrl_Up    (1<<0)
 #define ctrl_Down  (1<<1)
@@ -18,5 +18,16 @@ int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, i
 #define ctrl_Hold  (1<<6)
 #define ctrl_Pause (1<<7)
 
+typedef struct {
+  int8_t x;
+  int8_t y;
+} vector_t;
+
+vector_t tests[4] = {
+  { 1, 0 },
+  { 1, 1 },
+  { 0, 2 },
+  { 1, 2 }
+};
 
 #endif

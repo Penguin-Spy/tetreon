@@ -1,0 +1,116 @@
+https://tetris.fandom.com/wiki/SRS
+
+
+if rotating from 3 or rotating to 1:
+  x is negative, otherwise it's positive
+
+if rotating from 1 or rotating from 3:
+  test 3: y negative, otherwise positive
+  test 4 & 5: y positive, otherwise negative
+
+-- above but switched
+test 3:
+  if rotating from 1 or from 3:
+    y negative
+  else
+    y positive
+
+test 1, 2, 4, 5:
+  if rotating from 1 or from 3:
+    y positive
+  else
+    y negative
+
+--------------
+
+
+test 1: (0, 0) // don't need to loop through, just do a basic check
+test 2: (1, 0)
+test 3: (1, 1)
+test 4: (0, 2)
+test 5: (1, 2)
+
+
+if rotating from 3 or rotating to 1:
+  x is negative, otherwise it's positive
+
+
+if rotating from 1 or from 3:
+  y positive
+else
+  y negative
+
+if test = 3:
+  y = y*-1
+
+
+
+----------------
+
+vector_t tests[4] = {
+  { 1, 0 },
+  { 1, 1 },
+  { 0, 2 },
+  { 1, 2 }
+}
+
+
+RotateAndKick(tetrimino, from_rot, to_rot, start_x, start_y, playfield, *result) {
+  int8_t i, test_x, test_y
+  vector_t test
+  
+  if not CheckCollision(tetrimino, to_rot, start_x, start_y, playfield) {
+    return result = { true, start_x, start_y }
+  }
+  
+  // literal magic
+  
+  for(i=0, i<4, i++) {
+    test = { tests[i].x, tests[i].y }
+    
+    if(from_rot == 3 or to_rot == 1) {
+      test.x *= -1;
+    }
+    
+    if(from_rot == 0 or from_rot == 2) {
+      test.y *= -1;
+    }
+    if(i == 1) { // test #3
+      test.y *= -1;
+    }
+    
+    
+    // collision checks with offset by the test vector
+    
+  }
+  
+
+
+  result = { success?, end_x, end_y}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -63,6 +63,11 @@ int main(void) {
   gfx_SetColor(COLOR_BG);
   gfx_FillRectangle(100, 0, 120, 240);
 
+  /*while(os_GetCSC());
+  while(!os_GetCSC());
+
+  gfx_End();
+  return 0;*/
 
   do {
     /* Update kb_Data */
@@ -95,44 +100,68 @@ int main(void) {
 
     /* Tetrimino shifting */
     if(controls & ctrl_Left) {
-      //TODO: check collision
-
-      hand_x--;
+      if(CheckCollision(hand_tetrimino, hand_rotation, --hand_x, hand_y, playfield)) {
+        hand_x++;
+      }
     }
     if(controls & ctrl_Right) {
-      //TODO: check collision
-
-      hand_x++;
+      if(CheckCollision(hand_tetrimino, hand_rotation, ++hand_x, hand_y, playfield)) {
+        hand_x--;
+      }
     }
     if(controls & ctrl_Up) {
       //TODO: hard drop
-
-      hand_y--;
+      if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, --hand_y, playfield)) {
+        hand_y++;
+      }
     }
     if(controls & ctrl_Down) {
       //TODO: soft drop
-
-      hand_y++;
+      if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
+        hand_y--;
+      }
     }
 
     /* Tetrimino rotation */
     if(controls & ctrl_RotL) {
-      //TODO: check collision
+      //TODO: wall kicks
 
-      hand_rotation -= 1;
+      enum rotation test_rotation = hand_rotation;
+      test_rotation--;
+      if(test_rotation < Up) test_rotation = Left;
+
+      /*if(!CheckCollision(hand_tetrimino, test_rotation, hand_x, hand_y, playfield)) {
+        hand_rotation--;
+      }*/
+      if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
+        hand_rotation = test_rotation;
+      }
 
     }
     if(controls & ctrl_RotR) {
-      hand_rotation += 1;
+
+      enum rotation test_rotation = hand_rotation;
+      test_rotation++;
+      if(test_rotation > Left) test_rotation = Up;
+
+      /*if(!CheckCollision(hand_tetrimino, test_rotation, hand_x, hand_y, playfield)) {
+        hand_rotation++;
+      }*/
+      if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
+        hand_rotation = test_rotation;
+      }
+
     }
 
-    if(hand_rotation > Right) hand_rotation = Up;
-    if(hand_rotation < Up) hand_rotation = Right;
+    if(hand_rotation > Left) hand_rotation = Up;
+    if(hand_rotation < Up) hand_rotation = Left;
 
     if(controls & ctrl_Hold) {
       hand_tetrimino += 1;
       if(hand_tetrimino >= None) hand_tetrimino = I;
     }
+
+
     gfx_SetTextXY(228, 8*8);
     gfx_PrintInt(hand_tetrimino, 1);
     gfx_SetTextXY(244, 8*8);
@@ -141,13 +170,6 @@ int main(void) {
     DrawPlayfield(playfield);
 
     DrawTetrimino(hand_tetrimino, hand_rotation, hand_x, hand_y);
-
-    if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, hand_y, playfield)) {
-      gfx_PrintStringXY("collision", 100, 232);
-    } else {
-      gfx_PrintStringXY("nah               ", 100, 232);
-    }
-
 
     gfx_BlitBuffer();
 
@@ -168,23 +190,13 @@ int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, i
 
   for(r = 0; r < 4; r++) {
     for(c = 0; c < 4; c++) {
-      gfx_SetTextXY(c*8, r*8 + 5*8);
-      gfx_PrintInt(*(shape+(r*4)+c), 1);
       if(*(shape+(r*4)+c) == 1) {
-        gfx_SetColor(COLOR_SIDE);
-        gfx_FillRectangle(100 + 12*c + 12*test_x, 12*r + 12*test_y, 12, 12);
-
         check_x = test_x + c;
         if(check_x < 0 || check_x > PLAYFIELD_WIDTH-1) collide = 1;
 
         check_y = test_y + r;
         if(check_y < 0 || check_y > PLAYFIELD_HEIGHT-1) collide = 1;
-        /*if(test_x + c < 0) {
-          collide = 1;
-        }
-        if(test_x + c > PLAYFIELD_WIDTH) {
-          collide = 1;
-        }*/
+
         if(playfield[test_y+r][test_x+c]) {
           collide = 1;
         }
@@ -192,6 +204,59 @@ int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, i
     }
   }
   return collide;
+}
+
+// rotates & wallkicks a tetrimino
+// the parameters to_rot, start_x, and start_y are pointers, the correct state of the tetrimino after the attempted rotation is returned in those variables
+
+int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum rotation* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]) {
+  int8_t i, test_x, test_y;
+  vector_t test;
+
+  if(!CheckCollision(test_tetrimino, *to_rot, *start_x, *start_y, playfield)) {
+    return 1; // This tetrimino can rotate as-is, leave params alone and return success
+  }
+
+  // literal magic
+
+  for(i=0; i<4; i++) {
+    test.x = tests[i].x;
+    test.y = tests[i].y;
+
+    if(from_rot == Left || *to_rot == Right) {
+      test.x *= -1;
+    }
+
+    //if(from_rot == Up || from_rot == Down) {
+    if(from_rot == Right || from_rot == Left) {
+      test.y *= -1;
+    }
+    if(i == 1) { // test #3
+      test.y *= -1;
+    }
+
+    gfx_SetTextXY(*start_x + i*32, *start_y);
+    gfx_PrintInt(test.x, 1);
+    gfx_PrintChar(',');
+    gfx_PrintInt(test.y, 1);
+
+
+    // collision checks with offset by the test vector
+    test_x = *start_x + test.x;
+    test_y = *start_y + test.y;
+
+    if(!CheckCollision(test_tetrimino, *to_rot, test_x, test_y, playfield)) {
+      // This test found a position this tetrimino can fit in, modify position params and return success
+      *start_x = test_x;
+      *start_y = test_y;
+      return 1;
+    }
+  }
+
+  // If we reach here, no tests found a position the tetrimino could fit in, reset rotation and return failure
+  *to_rot = from_rot;
+  return 0;
+
 }
 
 /* x, y are the position in the playfield of the top-left corner of the tetrimino */
@@ -206,11 +271,8 @@ void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, i
 
   // for i=15,0,-1 do    *(shape + (1<<i) ) == 1
 
-
   for(r = 0; r < 4; r++) {
     for(c = 0; c < 4; c++) {
-      gfx_SetTextXY(c*8, r*8);
-      gfx_PrintInt(*(shape+(r*4)+c), 1);
       if(*(shape+(r*4)+c) == 1) {
         gfx_FillRectangle(100 + 12*c + 12*x, 12*r + 12*y, 12, 12);
       }
