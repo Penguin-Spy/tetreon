@@ -180,6 +180,86 @@ y is always positive
 
 
 
+controls:
+
+int8_t moveDelay
+
+
+if(pressed && moveDelay == -1) set to 5
+if(!pressed) set to -1
+
+
+if(moveDelay == 5 || moveDelay == 0) {
+  //move
+  if (moveDelay == 0) moveDelay = 2;
+}
+
+if(moveDelay > 0) moveDelay--;
+
+
+
+----------
+
+uint8_t previousInputs = 0;
+uint8_t moves = 0;
+
+
+if(HOLDING_RIGHT) { // if right is held
+  
+  if(!(previousInputs & input_Right)) { // if it wasn't last frame
+  
+    moves = ctrl_Right; // move tetrimino right this frame
+  
+    moveDelay = 5; // and wait 5 frames
+    
+  } else if(moveDelay == 0) { // if it was held last frame, but the delay has ran out
+    
+    moves = ctrl_Right; // move tetrimino right this frame
+    
+    moveDelay = 2; // and wait 2 frames
+    
+  }
+  previousInputs |= input_Right;
+  
+} else { // 
+  moveDelay = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

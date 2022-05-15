@@ -24,6 +24,7 @@ uint16_t palette[] = {
 #define COLOR_BG 7
 #define COLOR_SIDE COLOR_BG+1
 #define COLOR_TEXT COLOR_BG+2
+#define COLOR_CLEAR COLOR_BG+2
 
 
 /* Physics */
