@@ -7,6 +7,8 @@
 /* Graphics */
 
 uint16_t palette[] = {
+  0,      // playfield bg
+
   1023,  // 0b0.00000.11111.11111
   32736, // 0b0.11111.11111.00000
   31775, // 0b0.11111.00000.11111
@@ -15,16 +17,15 @@ uint16_t palette[] = {
   31,    // 0b0.00000.00000.11111
   32256, // 0b0.11111.10000.00000
 
-  0,      // playfield bg
   0x2529, // side
   0x7FFF, // text
 };
 #define PALETTE_SIZE sizeof(palette)
 
-#define COLOR_BG 7
-#define COLOR_SIDE COLOR_BG+1
-#define COLOR_TEXT COLOR_BG+2
-#define COLOR_CLEAR COLOR_BG+2
+#define COLOR_BG 0
+#define COLOR_SIDE 8
+#define COLOR_TEXT COLOR_SIDE+1
+#define COLOR_CLEAR COLOR_TEXT
 
 
 /* Physics */
@@ -32,12 +33,15 @@ uint16_t palette[] = {
 #define PLAYFIELD_WIDTH 10
 #define PLAYFIELD_HEIGHT 20
 
-enum tetrimino { I, O, T, S, Z, J, L, None }; // none is for the hold slot, which is empty by default
+enum tetrimino { None, I, O, T, S, Z, J, L }; // none is for the hold slot, which is empty by default, as well as empty spots on the playfield
 enum rotation { Up, Right, Down, Left };  // based on the pointy bit of the T
 
 #define TETRIMINO_COUNT     7
 #define TETRIMINO_ROTATIONS 4
 #define TETRIMINO_SIZE      4*4
+
+// fancy pointer math. tetrimino-1 is BC rotations[0] = I, but the enum I = 1
+#define GET_TETRIMINO_SHAPE(tetrimino, rotation) rotations + (tetrimino-1)*TETRIMINO_SIZE*TETRIMINO_ROTATIONS + rotation*TETRIMINO_SIZE;
 
 // ew but works
 uint8_t rotations[] = {
