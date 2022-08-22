@@ -22,9 +22,12 @@ uint16_t palette[] = {
 };
 #define PALETTE_SIZE sizeof(palette)
 
-#define COLOR_BG 0
+#define COLOR_NONE 0
 #define COLOR_SIDE 8
+
+#define COLOR_BG 0
 #define COLOR_TEXT COLOR_SIDE+1
+
 #define COLOR_CLEAR COLOR_TEXT
 
 

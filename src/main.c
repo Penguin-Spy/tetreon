@@ -46,9 +46,12 @@ int main(void) {
     { 4,4,4,4,4,0,2,2,2,2 }
   };
   int8_t hand_x = 3, hand_y = 0;
-  enum tetrimino hand_tetrimino = J;
+  enum tetrimino hand_tetrimino = None;
   enum rotation  hand_rotation = Up;
   enum tetrimino hold_tetrimino = None;
+  uint8_t can_hold = 1; // 0 = holding is disabled until next tetrimino, 1 = can hold (basically a boolean but the TI-CE toolchain doesn't like stdbool.h)
+
+  /* --- PGRM START --- */
 
   // start up a timer for tick counters, do not move:
   timer_Control = TIMER1_ENABLE | TIMER1_32K | TIMER1_NOINT | TIMER1_UP;
@@ -65,8 +68,9 @@ int main(void) {
   gfx_SetTextFGColor(COLOR_TEXT);
   gfx_SetTextBGColor(COLOR_BG);
 
-  gfx_SetColor(COLOR_BG);
-  gfx_FillRectangle(100, 0, 120, 240);
+  gfx_SetColor(COLOR_NONE);
+  gfx_FillRectangle(100, 0, 120, 240);  // playfield
+  gfx_FillRectangle(40, 12, 48, 48);    // hold
 
   do {
     /* Update kb_Data */
@@ -125,7 +129,7 @@ int main(void) {
 
       for(i = hand_y, i < PLAYFIELD_HEIGHT; i++;) {
         if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, i, playfield)) {
-          // we collide here, lock piece
+          // we collide here, lock tetrimino
           hand_y = i - 1;
           counter_lock_set();
           break;
@@ -134,14 +138,13 @@ int main(void) {
     }
     // Soft drop
     if(HOLDING_DOWN && check_counter_move) {
-      counter_gravity_reset();  // make sure gravity doesn't interfere w/ soft dropping the piece
-      counter_lock_reset();     // regardless of if we move or hit the ground, reset the lock delay
-
       if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
         hand_y--;
 
       } else {  // move successful, coordinate already changed by if statement
         counter_move_set_hold();
+        counter_gravity_reset();  // make sure gravity doesn't interfere w/ soft dropping the tetrimino
+        counter_lock_reset();
       }
     }
 
@@ -172,10 +175,26 @@ int main(void) {
     }
 
 
-    /* Tetrimino holding (just incs piece for now) */
-    if(controls & ctrl_Hold) {
-      hand_tetrimino += 1;
-      if(hand_tetrimino > TETRIMINO_COUNT) hand_tetrimino = I;
+    /* Tetrimino holding */
+    if(controls & ctrl_Hold && can_hold && !CheckCollision(hold_tetrimino, Up, 3, 0, playfield)) {
+      enum tetrimino temp_tetrimino = hold_tetrimino;
+      hold_tetrimino = hand_tetrimino;
+      hand_tetrimino = temp_tetrimino;
+
+      // reset hand
+      counter_lock_reset();
+      counter_gravity_reset();
+      counter_move_set_hold();
+
+      hand_x = 3;
+      hand_y = 0;
+      hand_rotation = Up;
+      can_hold = 0; // block holding until next tetrimino is generated
+
+      // update hold display
+      gfx_SetColor(COLOR_NONE);
+      gfx_FillRectangle(40, 12, 48, 48);
+      DrawTetrimino(hold_tetrimino, Up, -5, 1);
     }
 
 
@@ -196,14 +215,7 @@ int main(void) {
         PlaceTetrimino(hand_tetrimino, hand_rotation, hand_x, --hand_y, playfield);
 
         // new tetrimino
-        hand_tetrimino += 1;
-        if(hand_tetrimino > TETRIMINO_COUNT) hand_tetrimino = I;
-        counter_lock_reset();
-        counter_gravity_reset();
-        counter_move_set_hold();
-
-        hand_x = 3;
-        hand_y = 0;
+        hand_tetrimino = None;
 
         DrawPlayfield(playfield);
         gfx_BlitBuffer();
@@ -212,6 +224,21 @@ int main(void) {
       } else {
         hand_y--;
       }
+    }
+
+    /* New tetrimino generation */
+    if(hand_tetrimino == None) {
+      // todo: 7-bag randomization
+      hand_tetrimino = randInt(1, TETRIMINO_COUNT);
+
+      counter_lock_reset();
+      counter_gravity_reset();
+      counter_move_set_hold();
+
+      hand_x = 3;
+      hand_y = 0;
+      hand_rotation = Up;
+      can_hold = 1;
     }
 
 
@@ -403,7 +430,7 @@ void DrawPlayfield(uint8_t playfield[20][10]) {
   uint8_t r, c;
 
   // Clear playfield
-  gfx_SetColor(COLOR_BG);
+  gfx_SetColor(COLOR_NONE);
   gfx_FillRectangle(100, 0, 120, 240);
 
   // Loop through matrix
