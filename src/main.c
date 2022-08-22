@@ -13,16 +13,7 @@
 
 #include "tetreon.h"
 #include "tetriminos.h"
-
-#define MAX_COUNTERS 3
-int counters[MAX_COUNTERS];
-
-#define set_counter(id, ticks) counters[id] = ticks
-#define check_counter(id) counters[id] == 0
-
-#define COUNTER_MOVE 0      // delay until we can move again
-#define COUNTER_GRAVITY 1   // delay until gravity attempts to move the tetrimino down
-#define COUNTER_LOCKING 2   // delay until the tetrimino locks in place (if it should)
+#include "counter.h"
 
 int main(void) {
   uint8_t controls_cur = 0;  // current state of controls
@@ -58,9 +49,8 @@ int main(void) {
   enum tetrimino hand_tetrimino = J;
   enum rotation  hand_rotation = Up;
   enum tetrimino hold_tetrimino = None;
-  uint8_t moveDelay = 0; // "ticks" before piece can move again while holding button
 
-  // start up a timer for tetrimino gravity & locking, do not move:
+  // start up a timer for tick counters, do not move:
   timer_Control = TIMER1_ENABLE | TIMER1_32K | TIMER1_NOINT | TIMER1_UP;
   timer_1_Counter = timer_1_ReloadValue = 0;
 
@@ -77,12 +67,6 @@ int main(void) {
 
   gfx_SetColor(COLOR_BG);
   gfx_FillRectangle(100, 0, 120, 240);
-
-  /*while(os_GetCSC());
-  while(!os_GetCSC());
-
-  gfx_End();
-  return 0;*/
 
   do {
     /* Update kb_Data */
@@ -115,24 +99,24 @@ int main(void) {
     /* ----- Tetrimino Movement ----- */
 
     /* Tetrimino shifting */
-    if(HOLDING_LEFT && check_counter(COUNTER_MOVE)) {
+    if(HOLDING_LEFT && check_counter_move) {
       if(CheckCollision(hand_tetrimino, hand_rotation, --hand_x, hand_y, playfield)) {
         hand_x++;
       } else {  // move successful, coordinate already changed by if statement
-        if(controls & ctrl_Left) set_counter(COUNTER_MOVE, 3);
-        else set_counter(COUNTER_MOVE, 1);
+        if(controls & ctrl_Left) counter_move_set_start();
+        else counter_move_set_hold();
 
-        set_counter(COUNTER_LOCKING, 8);
+        counter_lock_reset();
       }
     }
-    if(HOLDING_RIGHT && check_counter(COUNTER_MOVE)) {
+    if(HOLDING_RIGHT && check_counter_move) {
       if(CheckCollision(hand_tetrimino, hand_rotation, ++hand_x, hand_y, playfield)) {
         hand_x--;
       } else {  // move successful, coordinate already changed by if statement
-        if(controls & ctrl_Right) set_counter(COUNTER_MOVE, 3);
-        else set_counter(COUNTER_MOVE, 1);
+        if(controls & ctrl_Right) counter_move_set_start();
+        else counter_move_set_hold();
 
-        set_counter(COUNTER_LOCKING, 8);
+        counter_lock_reset();
       }
     }
     // Hard drop
@@ -143,21 +127,21 @@ int main(void) {
         if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, i, playfield)) {
           // we collide here, lock piece
           hand_y = i - 1;
-          set_counter(COUNTER_LOCKING, 0);
+          counter_lock_set();
           break;
         }
       }
     }
     // Soft drop
-    if(HOLDING_DOWN && check_counter(COUNTER_MOVE)) {
-      set_counter(COUNTER_GRAVITY, 8);  // make sure gravity doesn't interfere w/ soft dropping the piece
-      set_counter(COUNTER_LOCKING, 8);  // regardless of if we move or hit the ground, reset the lock delay
+    if(HOLDING_DOWN && check_counter_move) {
+      counter_gravity_reset();  // make sure gravity doesn't interfere w/ soft dropping the piece
+      counter_lock_reset();     // regardless of if we move or hit the ground, reset the lock delay
 
       if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
         hand_y--;
 
       } else {  // move successful, coordinate already changed by if statement
-        set_counter(COUNTER_MOVE, 1);
+        counter_move_set_hold();
       }
     }
 
@@ -171,7 +155,7 @@ int main(void) {
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
         hand_rotation = test_rotation;
 
-        set_counter(COUNTER_LOCKING, 8);
+        counter_lock_reset();
       }
     }
     if(controls & ctrl_RotR) {
@@ -183,7 +167,7 @@ int main(void) {
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
         hand_rotation = test_rotation;
 
-        set_counter(COUNTER_LOCKING, 8);
+        counter_lock_reset();
       }
     }
 
@@ -196,27 +180,27 @@ int main(void) {
 
 
     /* Tetrimino gravity */
-    if(check_counter(COUNTER_GRAVITY)) {
-      set_counter(COUNTER_GRAVITY, 8);
+    if(check_counter_gravity) {
+      counter_gravity_reset();
 
       if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
         hand_y--;
       } else {  // move successful, coordinate already changed by if statement
-        set_counter(COUNTER_LOCKING, 8);
+        counter_lock_reset();
       }
     }
 
     /* Tetrimino locking */
-    if(check_counter(COUNTER_LOCKING)) {
+    if(check_counter_lock) {
       if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, ++hand_y, playfield)) {
         PlaceTetrimino(hand_tetrimino, hand_rotation, hand_x, --hand_y, playfield);
 
         // new tetrimino
         hand_tetrimino += 1;
         if(hand_tetrimino > TETRIMINO_COUNT) hand_tetrimino = I;
-        set_counter(COUNTER_LOCKING, 8);
-        set_counter(COUNTER_GRAVITY, 8);
-        set_counter(COUNTER_MOVE, 0);
+        counter_lock_reset();
+        counter_gravity_reset();
+        counter_move_set_hold();
 
         hand_x = 3;
         hand_y = 0;
@@ -245,16 +229,17 @@ int main(void) {
     /* ----- Counters ----- */
 
     // decrement all counters every 1/16 second (1 "tick")
-    if(timer_1_Counter > (32768 / 16)) {
-      uint8_t i;
-
+    if(timer_1_Counter > COUNTER_TICK) {
       timer_1_Counter = 0;
-      for(i = 0; i < MAX_COUNTERS; i++) {
-        if(counters[i] > 0) counters[i]--;
-        gfx_SetTextXY(0, 200 + 8*i);
-        gfx_PrintUInt(counters[i], 1);
-      }
+      decrement_counters();
     }
+
+    gfx_SetTextXY(0, 200);
+    gfx_PrintUInt(counter_move, 1);
+    gfx_SetTextXY(0, 208);
+    gfx_PrintUInt(counter_gravity, 1);
+    gfx_SetTextXY(0, 216);
+    gfx_PrintUInt(counter_lock, 1);
 
   } while(kb_Data[6] != kb_Clear);
 
