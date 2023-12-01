@@ -2,7 +2,7 @@
  *--------------------------------------
  * Program Name: Tetreon
  * Author: Penguin_Spy
- * License: MIT
+ * License: MPL-2.0
  * Description: Tetris clone with modern tetris rules
  *--------------------------------------
 */
@@ -16,6 +16,12 @@
 #include "counter.h"
 
 int main(void) {
+  // temp variables
+  rotation_t test_rotation;
+  tetrimino_t temp_tetrimino;
+  uint8_t i;
+
+  // controls
   uint8_t controls_cur = 0;  // current state of controls
   uint8_t controls_prev = 0; // previous state of controls
   uint8_t controls = 0;      // set for one frame when key pressed
@@ -46,9 +52,9 @@ int main(void) {
     { 4,4,4,4,4,0,2,2,2,2 }
   };
   int8_t hand_x = 3, hand_y = 0;
-  enum tetrimino hand_tetrimino = None;
-  enum rotation  hand_rotation = Up;
-  enum tetrimino hold_tetrimino = None;
+  tetrimino_t hand_tetrimino = None;
+  rotation_t  hand_rotation = Up;
+  tetrimino_t hold_tetrimino = None;
   uint8_t can_hold = 1; // 0 = holding is disabled until next tetrimino, 1 = can hold (basically a boolean but the TI-CE toolchain doesn't like stdbool.h)
 
   /* --- PGRM START --- */
@@ -125,9 +131,7 @@ int main(void) {
     }
     // Hard drop
     if(controls & ctrl_Up) {
-      uint8_t i;
-
-      for(i = hand_y, i < PLAYFIELD_HEIGHT; i++;) {
+      for(i = hand_y; i < PLAYFIELD_HEIGHT; i++) {
         if(CheckCollision(hand_tetrimino, hand_rotation, hand_x, i, playfield)) {
           // we collide here, lock tetrimino
           hand_y = i - 1;
@@ -150,9 +154,7 @@ int main(void) {
 
     /* Tetrimino rotation */
     if(controls & ctrl_RotL) {
-      enum rotation test_rotation = hand_rotation;
-
-      test_rotation--;
+      test_rotation = hand_rotation - 1;
       if(test_rotation < Up) test_rotation = Left;
 
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
@@ -162,9 +164,7 @@ int main(void) {
       }
     }
     if(controls & ctrl_RotR) {
-      enum rotation test_rotation = hand_rotation;
-
-      test_rotation++;
+      test_rotation = hand_rotation + 1;
       if(test_rotation > Left) test_rotation = Up;
 
       if(RotateAndKick(hand_tetrimino, hand_rotation, &test_rotation, &hand_x, &hand_y, playfield)) {
@@ -177,7 +177,7 @@ int main(void) {
 
     /* Tetrimino holding */
     if(controls & ctrl_Hold && can_hold && !CheckCollision(hold_tetrimino, Up, 3, 0, playfield)) {
-      enum tetrimino temp_tetrimino = hold_tetrimino;
+      temp_tetrimino = hold_tetrimino;
       hold_tetrimino = hand_tetrimino;
       hand_tetrimino = temp_tetrimino;
 
@@ -275,7 +275,7 @@ int main(void) {
   return 0;
 }
 
-int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, int8_t test_x, int8_t test_y, uint8_t playfield[20][10]) {
+int CheckCollision(tetrimino_t hand_tetrimino, rotation_t test_rotation, int8_t test_x, int8_t test_y, uint8_t playfield[20][10]) {
   uint8_t r, c;
   int8_t check_x = 0, check_y = 0;
 
@@ -302,7 +302,7 @@ int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, i
 // rotates & wallkicks a tetrimino
 // the parameters to_rot, start_x, and start_y are pointers, the correct state of the tetrimino after the attempted rotation is returned in those variables
 
-int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum rotation* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]) {
+int RotateAndKick(tetrimino_t test_tetrimino, rotation_t from_rot, rotation_t* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]) {
   int8_t i, test_x, test_y;
   vector_t test;
 
@@ -352,7 +352,7 @@ int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum ro
 
 }
 
-void PlaceTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y, uint8_t playfield[20][10]) {
+void PlaceTetrimino(tetrimino_t hand_tetrimino, rotation_t hand_rotation, int8_t x, int8_t y, uint8_t playfield[20][10]) {
   uint8_t r, c;
 
   uint8_t* shape = GET_TETRIMINO_SHAPE(hand_tetrimino, hand_rotation);
@@ -397,7 +397,7 @@ void ClearLines(uint8_t playfield[20][10]) {
 
       // then actually clear the line & shift everything down
       for(c = 0; c < PLAYFIELD_WIDTH; c++) {
-        for(r2 = r; r2 > 1; r2--) {
+        for(r2 = r; r2 > 0; r2--) {
           playfield[r2][c] = playfield[r2-1][c];
         }
         playfield[0][c] = 0;
@@ -407,7 +407,7 @@ void ClearLines(uint8_t playfield[20][10]) {
 }
 
 /* x, y are the position in the playfield of the top-left corner of the tetrimino */
-void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y) {
+void DrawTetrimino(tetrimino_t hand_tetrimino, rotation_t hand_rotation, int8_t x, int8_t y) {
   uint8_t r, c;
 
   uint8_t* shape = GET_TETRIMINO_SHAPE(hand_tetrimino, hand_rotation);

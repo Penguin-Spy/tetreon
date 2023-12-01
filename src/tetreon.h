@@ -2,13 +2,14 @@
 #define H_TETREON
 
 #include <tice.h>
+#include "tetriminos.h"
 
 /* Function prototypes */
-void DrawTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y);
+void DrawTetrimino(tetrimino_t hand_tetrimino, rotation_t hand_rotation, int8_t x, int8_t y);
 void DrawPlayfield(uint8_t playfield[20][10]);
-int CheckCollision(enum tetrimino hand_tetrimino, enum rotation test_rotation, int8_t test_x, int8_t test_y, uint8_t playfield[20][10]);
-int RotateAndKick(enum tetrimino test_tetrimino, enum rotation from_rot, enum rotation* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]);
-void PlaceTetrimino(enum tetrimino hand_tetrimino, enum rotation hand_rotation, int8_t x, int8_t y, uint8_t playfield[20][10]);
+int CheckCollision(tetrimino_t hand_tetrimino, rotation_t test_rotation, int8_t test_x, int8_t test_y, uint8_t playfield[20][10]);
+int RotateAndKick(tetrimino_t test_tetrimino, rotation_t from_rot, rotation_t* to_rot, int8_t* start_x, int8_t* start_y, uint8_t playfield[20][10]);
+void PlaceTetrimino(tetrimino_t hand_tetrimino, rotation_t hand_rotation, int8_t x, int8_t y, uint8_t playfield[20][10]);
 void ClearLines(uint8_t playfield[20][10]);
 
 #define ctrl_Up    (1<<0)

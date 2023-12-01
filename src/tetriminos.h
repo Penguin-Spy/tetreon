@@ -36,8 +36,16 @@ uint16_t palette[] = {
 #define PLAYFIELD_WIDTH 10
 #define PLAYFIELD_HEIGHT 20
 
-enum tetrimino { None, I, O, T, S, Z, J, L }; // none is for the hold slot, which is empty by default, as well as empty spots on the playfield
-enum rotation { Up, Right, Down, Left };  // based on the pointy bit of the T
+// none is for the hold slot, which is empty by default, as well as empty spots on the playfield
+typedef enum { None, I, O, T, S, Z, J, L } tetrimino_t;
+
+// based on the pointy bit of the T. doesn't use enum to avoid compiler choosing an unsigned int
+typedef int8_t rotation_t;
+#define Up 0
+#define Right 1
+#define Down 2
+#define Left 3
+
 
 #define TETRIMINO_COUNT     7
 #define TETRIMINO_ROTATIONS 4
